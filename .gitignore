@@ -1,0 +1,39 @@
+# --- Gizli bilgiler (API anahtarı) ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# --- Uygulama verisi: kullanıcıya ait ve yeniden üretilebilir ---
+uploads/*
+!uploads/.gitkeep
+outputs/*
+!outputs/.gitkeep
+projects/*
+!projects/.gitkeep
+*.part.mp4
+
+# --- Ses dosyaları: büyük ve telifli olabilir; test seslerini `python scripts/generate_assets.py` üretir ---
+SesKlasörü/
+assets/sfx/*
+!assets/sfx/.gitkeep
+assets/bgm/*
+!assets/bgm/.gitkeep
+
+# --- Editör / araç yerel dosyaları ---
+.claude/*
+!.claude/launch.json
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db

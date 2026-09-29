@@ -1,0 +1,11 @@
+# Sistem gereksinimi: FFmpeg >= 7 (libx264, libmp3lame) PATH'te veya .env ile FFMPEG_BIN
+fastapi>=0.141,<1
+uvicorn[standard]>=0.54
+python-multipart>=0.0.32
+google-genai>=2.25,<3
+pydantic>=2.13,<3
+python-dotenv>=1.2
+
+# test
+pytest>=9
+httpx>=0.28
