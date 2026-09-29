@@ -44,6 +44,20 @@ EDL'deki **tüm** zamanlar ham videoya göredir. `services/timeline.py`:
 
 `assets/sfx/` ve `assets/bgm/` içindeki her `.mp3/.wav/.m4a/...` dosyası adıyla (uzantısız, küçük harf) kullanılabilir hale gelir ve Gemini şemasına **enum olarak** girer. Yani yeni bir ses eklemek kod değişikliği gerektirmez. `generate_assets.py` var olan dosyaların üzerine yazmaz.
 
+## Kendi Ses ve Müziklerinizi Ekleme (Custom Audio Assets)
+
+Varsayılan olarak `python scripts/generate_assets.py` yalnızca **sentetik test sesleri** üretir (FFmpeg ile üretilmiş sinüs/gürültü sesleri). Sistemin hatasız çalışması için yeterlidir, ancak gerçek kurgu kalitesi için telifsiz, profesyonel sesler kullanmanız önerilir:
+
+- **Ses efektleri (SFX):** https://pixabay.com/sound-effects/search/rhythmic%20beats/
+- **Arka plan müzikleri (BGM):** https://pixabay.com/music/search/rhythmic%20beats/
+
+İndirdiğiniz dosyaları `assets/sfx/` ve `assets/bgm/` klasörlerine atmanız yeterlidir (`.mp3`, `.wav`, `.m4a`, `.aac`, `.ogg`, `.flac`). Sunucuyu yeniden başlatmanız gerekmez; her istekte klasörler yeniden taranır.
+
+- Dosya adı (uzantısız, küçük harf) Gemini'ye seçenek olarak sunulur; bu yüzden anlamlı adlar verin (`whoosh-fast.mp3`, `chill-lofi.mp3`). Yeni dosya eklemek için kod değişikliği gerekmez.
+- SFX'lerin süresi de Gemini'ye bildirilir. Kısa vurgu sesleri (~0.5–2 sn) en iyi sonucu verir; uzun dosyalar (davul geçişleri, müzik "logo"ları) yalnızca geçiş ya da giriş/çıkış için kullanılır.
+- Müzikler videodan kısaysa döngülenir, uzunsa kesilir ve sonda kısılır.
+- Bu klasörlerdeki ses dosyaları **git'e eklenmez** (`.gitignore`): boyut ve lisans nedeniyle her kullanıcı kendi dosyalarını indirir. Kullanmadan önce Pixabay'in güncel lisans koşullarını kontrol edin.
+
 ## Test
 
 ```bash
