@@ -10,7 +10,11 @@ Gemini plans the edit; a deterministic FFmpeg pipeline renders it. Follow-up req
 
 🇹🇷 Türkçe dokümantasyon: [README.tr.md](README.tr.md)
 
-https://github.com/user-attachments/assets/0deddb7a-8a94-4a94-9365-0e76462f258d
+
+
+https://github.com/user-attachments/assets/7f94a533-215c-41b1-b81a-64bd262a9b79
+
+
 
 
 
