@@ -8,7 +8,7 @@ Kurguyu Gemini planlar; deterministik bir FFmpeg hattı render eder. *"3. saniye
 
 🇬🇧 English documentation: [README.md](README.md)
 
-https://github.com/user-attachments/assets/0deddb7a-8a94-4a94-9365-0e76462f258d
+https://github.com/user-attachments/assets/7f94a533-215c-41b1-b81a-64bd262a9b79
 
 ## Özellikler
 
