@@ -20,6 +20,12 @@ PROJECTS_DIR = BASE_DIR / "projects"
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+# Yedek model(ler): birincil model 429 (kota) ya da 503 (yoğunluk) verirse sırayla denenir.
+# Virgülle birden fazla yazılabilir; boş bırakılırsa yedekleme kapanır.
+GEMINI_FALLBACK_MODELS = [
+    m.strip() for m in os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.1-flash-lite").split(",") if m.strip()
+]
+GEMINI_FALLBACK_STATUS = (429, 503)
 GEMINI_FILE_POLL_SECONDS = 2.0
 GEMINI_FILE_TIMEOUT_SECONDS = 300.0
 # SDK'nın varsayılan HTTP zaman aşımı yok; takılan bir çağrı isteği sonsuza dek asılı bırakırdı.

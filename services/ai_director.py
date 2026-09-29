@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Literal
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 from pydantic import BaseModel, Field, create_model
 
@@ -186,13 +187,44 @@ class AIDirector:
             http_options=types.HttpOptions(timeout=int(config.GEMINI_ANALYZE_TIMEOUT_SECONDS * 1000)),
         )
         self.model = model or config.GEMINI_MODEL
+        self.last_model: str | None = None  # son başarılı çağrıyı yanıtlayan model
 
     @staticmethod
-    def _http(timeout_s: float) -> types.HttpOptions:
+    def _http(timeout_s: float, attempts: int | None = None) -> types.HttpOptions:
         return types.HttpOptions(
             timeout=int(timeout_s * 1000),
-            retry_options=types.HttpRetryOptions(attempts=config.GEMINI_RETRY_ATTEMPTS),
+            retry_options=types.HttpRetryOptions(attempts=attempts or config.GEMINI_RETRY_ATTEMPTS),
         )
+
+    def _models_to_try(self) -> list[str]:
+        """Birincil model + yedekler (tekrarsız, sıralı)."""
+        return list(dict.fromkeys(m for m in [self.model, *config.GEMINI_FALLBACK_MODELS] if m))
+
+    def _generate(self, contents, timeout_s: float, **cfg) -> types.GenerateContentResponse:
+        """generate_content; birincil model 429/503 verirse otomatik yedek modele geçer.
+
+        Yedek varken aynı modeli SDK ile tekrar denemek yerine hemen geçilir (günlük kota
+        429'unda beklemek boşunadır). Diğer hatalar (400, 404, zaman aşımı...) yedeğe düşmez.
+        """
+        models = self._models_to_try()
+        for i, model in enumerate(models):
+            has_next = i < len(models) - 1
+            try:
+                response = self.client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        http_options=self._http(timeout_s, attempts=1 if has_next else None), **cfg),
+                )
+            except genai_errors.APIError as exc:
+                if not has_next or exc.code not in config.GEMINI_FALLBACK_STATUS:
+                    raise
+                log.warning("Gemini modeli %s hata verdi (%s); yedek modele geçiliyor: %s",
+                            model, exc.code, models[i + 1])
+                continue
+            self.last_model = model
+            return response
+        raise AIDirectorError("Kullanılabilir Gemini modeli yok.")  # models boş olamaz; savunma amaçlı
 
     def _upload_and_wait(self, video_path: Path) -> types.File:
         mime = MIME_TYPES.get(video_path.suffix.lower())
@@ -236,16 +268,12 @@ class AIDirector:
                 file_data=types.FileData(file_uri=uploaded.uri, mime_type=uploaded.mime_type),
                 video_metadata=types.VideoMetadata(fps=fps),
             )
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[video_part, prompt],
-                config=types.GenerateContentConfig(
-                    system_instruction=system,
-                    response_mime_type="application/json",
-                    response_schema=schema,
-                    temperature=0.4,
-                    http_options=self._http(config.GEMINI_ANALYZE_TIMEOUT_SECONDS),
-                ),
+            response = self._generate(
+                [video_part, prompt], config.GEMINI_ANALYZE_TIMEOUT_SECONDS,
+                system_instruction=system,
+                response_mime_type="application/json",
+                response_schema=schema,
+                temperature=0.4,
             )
         finally:
             try:
@@ -275,17 +303,13 @@ class AIDirector:
                     f"AUDIO HINTS (edited-video seconds):\nSILENT_RANGES: {silent}\nPHRASE_STARTS: {starts}\n\n"
                     f"USER INSTRUCTION:\n{user_instruction.strip()}\n\n"
                     "Return the updated EDL.")
-        response = self.client.models.generate_content(
-            model=self.model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                response_mime_type="application/json",
-                response_schema=schema,
-                temperature=0.0,
-                thinking_config=types.ThinkingConfig(thinking_budget=1024),
-                http_options=self._http(config.GEMINI_REFINE_TIMEOUT_SECONDS),
-            ),
+        response = self._generate(
+            contents, config.GEMINI_REFINE_TIMEOUT_SECONDS,
+            system_instruction=system,
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=0.0,
+            thinking_config=types.ThinkingConfig(thinking_budget=1024),
         )
         raw = _parse_edl(response)
         after = sanitize_view(raw.model_copy(update={"summary": before.summary}),

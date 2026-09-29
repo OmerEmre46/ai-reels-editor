@@ -70,9 +70,12 @@ Open <http://localhost:8000>.
 |---|---|---|
 | `GEMINI_API_KEY` | – | **Required** for AI analysis and refinement |
 | `GEMINI_MODEL` | `gemini-3-flash-preview` | Any Gemini model that supports video input and structured output. Some older models (e.g. `gemini-2.5-flash`) are closed to new API users. Preview models can change or be busy (`503`); switch models here if needed |
+| `GEMINI_FALLBACK_MODEL` | `gemini-3.1-flash-lite` | Fallback model used automatically when the primary model returns **429** (quota) or **503** (overloaded). Comma-separate several; leave empty to disable |
 | `GEMINI_ANALYZE_TIMEOUT_SECONDS` | `150` | Timeout for video analysis |
 | `GEMINI_REFINE_TIMEOUT_SECONDS` | `45` | Timeout for text-only refinement |
 | `FFMPEG_BIN` / `FFPROBE_BIN` | `ffmpeg` / `ffprobe` | Set if they are not on `PATH` |
+
+> **Quota and fallback:** The free Gemini tier has per-model daily limits (20 requests/day on some models). If the primary model fails with a quota or overload error, `services/ai_director.py` completes the same request with the fallback model (the video is not re-uploaded). The lighter fallback may cut less precisely; the log shows which model answered. Other errors (bad request, timeout, …) do not trigger the fallback.
 
 ## Custom audio assets (sound effects and music)
 

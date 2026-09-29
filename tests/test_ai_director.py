@@ -104,3 +104,92 @@ def test_missing_api_key(monkeypatch):
     monkeypatch.setattr(ai_director.config, "GEMINI_API_KEY", "")
     with pytest.raises(AIDirectorError):
         AIDirector()
+
+
+# --- model yedekleme (429 kota / 503 yoğunluk) ------------------------------
+from google.genai import errors as genai_errors  # noqa: E402
+
+import config  # noqa: E402
+
+
+def quota_error():
+    return genai_errors.ClientError(429, {"error": {"code": 429, "message": "quota", "status": "RESOURCE_EXHAUSTED"}})
+
+
+def busy_error():
+    return genai_errors.ServerError(503, {"error": {"code": 503, "message": "busy", "status": "UNAVAILABLE"}})
+
+
+class FlakyModels(FakeModels):
+    """`failing` içindeki modeller hata verir; diğerleri normal yanıt döndürür."""
+
+    def __init__(self, failing: dict, parsed=None):
+        super().__init__(parsed=parsed)
+        self.failing, self.tried = failing, []
+
+    def generate_content(self, *, model, contents, config):
+        self.tried.append((model, config.http_options.retry_options.attempts))
+        if model in self.failing:
+            raise self.failing[model]
+        return super().generate_content(model=model, contents=contents, config=config)
+
+
+@pytest.fixture
+def fallback_cfg(monkeypatch):
+    monkeypatch.setattr(config, "GEMINI_FALLBACK_MODELS", ["lite-model"])
+
+
+def test_analyze_falls_back_on_quota_error(video, fallback_cfg):
+    files = FakeFiles([types.FileState.ACTIVE])
+    models = FlakyModels({"primary": quota_error()}, parsed=EDL_JSON)
+    director = AIDirector(client=SimpleNamespace(files=files, models=models), model="primary")
+    edl = director.analyze(video)
+    assert edl.sfx_events[0].type == "pop"
+    assert [m for m, _ in models.tried] == ["primary", "lite-model"]
+    assert director.last_model == "lite-model"
+    assert files.deleted == ["files/abc"]            # dosya bir kez yüklendi, yedek de aynı dosyayı kullandı
+    assert models.tried[0][1] == 1                   # yedek varken SDK aynı modeli tekrar denemez
+    assert models.tried[1][1] == config.GEMINI_RETRY_ATTEMPTS
+
+
+def test_refine_falls_back_on_busy_error(fallback_cfg):
+    from tests.test_refine import CURRENT
+    models = FlakyModels({"primary": busy_error()}, parsed=None)
+    models.generate_content = lambda **kw: (_ for _ in ()).throw(busy_error()) if kw["model"] == "primary" else \
+        SimpleNamespace(parsed=kw["config"].response_schema.model_validate(
+            {**CURRENT.model_dump(), "bgm": {**CURRENT.model_dump()["bgm"], "volume": 0.1}}), text=None, candidates=[])
+    director = AIDirector(client=SimpleNamespace(models=models, files=None), model="primary")
+    result = director.refine(CURRENT, "müziği kıs", 10.0)
+    assert result.changed and director.last_model == "lite-model"
+
+
+def test_all_models_failing_raises_last_error(video, fallback_cfg):
+    files = FakeFiles([types.FileState.ACTIVE])
+    models = FlakyModels({"primary": quota_error(), "lite-model": busy_error()}, parsed=EDL_JSON)
+    director = AIDirector(client=SimpleNamespace(files=files, models=models), model="primary")
+    with pytest.raises(genai_errors.ServerError):
+        director.analyze(video)
+    assert [m for m, _ in models.tried] == ["primary", "lite-model"]
+    assert files.deleted == ["files/abc"]            # hata olsa da yüklenen dosya silinir
+
+
+def test_other_errors_do_not_fall_back(video, fallback_cfg):
+    bad = genai_errors.ClientError(400, {"error": {"code": 400, "message": "bad", "status": "INVALID_ARGUMENT"}})
+    files = FakeFiles([types.FileState.ACTIVE])
+    models = FlakyModels({"primary": bad}, parsed=EDL_JSON)
+    director = AIDirector(client=SimpleNamespace(files=files, models=models), model="primary")
+    with pytest.raises(genai_errors.ClientError):
+        director.analyze(video)
+    assert [m for m, _ in models.tried] == ["primary"]
+
+
+def test_fallback_disabled_or_same_model(video, monkeypatch):
+    for setting in ([], ["primary"]):
+        monkeypatch.setattr(config, "GEMINI_FALLBACK_MODELS", setting)
+        files = FakeFiles([types.FileState.ACTIVE])
+        models = FlakyModels({"primary": quota_error()}, parsed=EDL_JSON)
+        director = AIDirector(client=SimpleNamespace(files=files, models=models), model="primary")
+        with pytest.raises(genai_errors.ClientError):
+            director.analyze(video)
+        assert [m for m, _ in models.tried] == ["primary"]
+        assert models.tried[0][1] == config.GEMINI_RETRY_ATTEMPTS   # yedek yoksa normal yeniden deneme

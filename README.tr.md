@@ -8,6 +8,8 @@ Kurguyu Gemini planlar; deterministik bir FFmpeg hattı render eder. *"3. saniye
 
 🇬🇧 English documentation: [README.md](README.md)
 
+https://github.com/user-attachments/assets/83cf9a74-0ec9-401c-8294-f2e373ad3a82
+
 ## Özellikler
 
 - **Yapay zeka ile ilk kurgu:** Gemini videoyu izler ve yapılandırılmış bir **Kurgu Karar Listesi (EDL)** döndürür: tutulacak kesimler, zoom vurguları, ses efektleri ve arka plan müziği.
@@ -64,9 +66,12 @@ cp .env.example .env                              # sonra GEMINI_API_KEY girin
 |---|---|---|
 | `GEMINI_API_KEY` | – | Yapay zeka analizi ve düzenlemesi için **zorunlu** |
 | `GEMINI_MODEL` | `gemini-3-flash-preview` | Video girişi ve yapılandırılmış çıktıyı destekleyen herhangi bir Gemini modeli. Bazı eski modeller (örn. `gemini-2.5-flash`) yeni API kullanıcılarına kapalıdır. Preview modeller değişebilir ya da yoğun olabilir (`503`); gerekirse buradan model değiştirin |
+| `GEMINI_FALLBACK_MODEL` | `gemini-3.1-flash-lite` | Birincil model **429** (kota) ya da **503** (yoğunluk) verirse otomatik geçilen yedek model. Virgülle birden fazla yazılabilir; boş bırakılırsa yedekleme kapanır |
 | `GEMINI_ANALYZE_TIMEOUT_SECONDS` | `150` | Video analizi zaman aşımı |
 | `GEMINI_REFINE_TIMEOUT_SECONDS` | `45` | Yalnızca metin içeren düzenleme zaman aşımı |
 | `FFMPEG_BIN` / `FFPROBE_BIN` | `ffmpeg` / `ffprobe` | `PATH` içinde değillerse ayarlayın |
+
+> **Kota ve yedekleme:** Ücretsiz Gemini kotası modele göre günlük sınırlıdır (bazı modellerde 20 istek/gün). Birincil model kota ya da yoğunluk hatası verirse `services/ai_director.py` aynı isteği otomatik olarak yedek modelle tamamlar (yükleme tekrarlanmaz). Yedek model daha hafif olduğu için kesim kalitesi daha düşük olabilir; log'da hangi modelin yanıtladığı görünür. Diğer hatalar (geçersiz istek, zaman aşımı vb.) yedeğe düşmez.
 
 ## Kendi Ses ve Müziklerinizi Ekleme (Custom Audio Assets)
 
