@@ -30,8 +30,7 @@ assets/bgm/*
 !assets/bgm/.gitkeep
 
 # --- Editör / araç yerel dosyaları ---
-.claude/*
-!.claude/launch.json
+.claude/
 .vscode/
 .idea/
 *.log
