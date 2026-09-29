@@ -1,3 +1,5 @@
+
+
 # AI Reels Editor
 
 **Drop in a raw video, describe the edit in plain language, get a 9:16 Instagram Reel.**
@@ -7,6 +9,10 @@ Gemini plans the edit; a deterministic FFmpeg pipeline renders it. Follow-up req
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
 🇹🇷 Türkçe dokümantasyon: [README.tr.md](README.tr.md)
+
+https://github.com/user-attachments/assets/83cf9a74-0ec9-401c-8294-f2e373ad3a82
+
+
 
 ## Features
 
